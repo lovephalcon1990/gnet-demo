@@ -235,16 +235,16 @@ func main() {
 			}
 
 			// // 发送登录请求
-			// if err := client.SendLoginRequest(username, password); err != nil {
-			// 	logging.Errorf("send login request failed: %v", err)
-			// 	return
-			// }
+			if err := client.SendLoginRequest(username, password); err != nil {
+				logging.Errorf("send login request failed: %v", err)
+				return
+			}
 
-			// // 发送测试消息
-			// if err := client.SendChatMessage("Hello, World!"); err != nil {
-			// 	logging.Errorf("send chat message failed: %v", err)
-			// 	return
-			// }
+			// 发送测试消息
+			if err := client.SendChatMessage("Hello, World!"); err != nil {
+				logging.Errorf("send chat message failed: %v", err)
+				return
+			}
 		}(i)
 	}
 

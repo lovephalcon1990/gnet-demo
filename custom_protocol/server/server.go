@@ -137,7 +137,7 @@ func main() {
 		gnet.WithTCPKeepAlive(0),
 		gnet.WithTicker(true),
 		gnet.WithReuseAddr(true),
-		gnet.WithReusePort(true),
+		// gnet.WithReusePort(true),
 	)
 	logging.Infof("server exits with error: %v", err)
 }
