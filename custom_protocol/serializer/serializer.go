@@ -3,21 +3,54 @@ package serializer
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 
 	"github.com/gnet-io/gnet-examples/custom_protocol/pb"
-	"github.com/panjf2000/gnet/v2/pkg/logging"
 	"google.golang.org/protobuf/proto"
 )
 
 const HeaderSize = 30
+const (
+	MagicID     = 0x12345678
+	MaxBodySize = 1024 * 1024 * 10 // 10MB
+)
 
 type PacketHeader struct {
 	MagicID        uint32
 	ClientIP       uint32
 	ClientPort     uint16
-	LastActiveTime int64
-	CreateTime     int64
+	LastActiveTime uint64
+	CreateTime     uint64
 	BodyLen        uint32
+}
+
+// ReadPacketHeader 从连接中读取并解析固定长度的包头, 包体
+func ReadPacketHeader(r io.Reader) ([]byte, error) {
+	buf := make([]byte, HeaderSize)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return nil, fmt.Errorf("read packet header: %w", err)
+	}
+
+	header := &PacketHeader{
+		MagicID:        binary.BigEndian.Uint32(buf[0:4]),
+		ClientIP:       binary.BigEndian.Uint32(buf[4:8]),
+		ClientPort:     binary.BigEndian.Uint16(buf[8:10]),
+		LastActiveTime: binary.BigEndian.Uint64(buf[10:18]),
+		CreateTime:     binary.BigEndian.Uint64(buf[18:26]),
+		BodyLen:        binary.BigEndian.Uint32(buf[26:30]),
+	}
+	if header.MagicID != MagicID {
+		return nil, fmt.Errorf("invalid magic ID: %x", header.MagicID)
+	}
+	if header.BodyLen == 0 || header.BodyLen > MaxBodySize {
+		return nil, fmt.Errorf("invalid body length: %d", header.BodyLen)
+	}
+	// 读取包体
+	bodyBuf := make([]byte, header.BodyLen)
+	if _, err := io.ReadFull(r, bodyBuf); err != nil {
+		return nil, fmt.Errorf("read packet body: %w", err)
+	}
+	return bodyBuf, nil
 }
 
 func EncodeMessage(cmdId uint32, msg proto.Message) ([]byte, error) {
@@ -39,7 +72,7 @@ func EncodeMessage(cmdId uint32, msg proto.Message) ([]byte, error) {
 
 	// 创建包头
 	header := &PacketHeader{
-		MagicID:        0x12345678,
+		MagicID:        MagicID,
 		BodyLen:        uint32(len(commonBytes)),
 		LastActiveTime: 0,
 		CreateTime:     0,
@@ -53,7 +86,6 @@ func EncodeMessage(cmdId uint32, msg proto.Message) ([]byte, error) {
 	binary.BigEndian.PutUint64(headerBuf[10:18], uint64(header.LastActiveTime))
 	binary.BigEndian.PutUint64(headerBuf[18:26], uint64(header.CreateTime))
 	binary.BigEndian.PutUint32(headerBuf[26:30], header.BodyLen)
-	logging.Infof("headerBuf: %v, bodyLen: %d logLevel: %s", headerBuf, header.BodyLen, logging.LogLevel())
 	// 组合包头和消息体
 	packet := make([]byte, HeaderSize+len(commonBytes))
 	copy(packet[0:HeaderSize], headerBuf)

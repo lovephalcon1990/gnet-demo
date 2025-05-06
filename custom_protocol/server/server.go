@@ -1,10 +1,8 @@
 package main
 
 import (
-	"encoding/binary"
 	"flag"
 	"fmt"
-	"io"
 	"math"
 	"sync/atomic"
 	"time"
@@ -65,29 +63,9 @@ func (s *customServer) OnTick() (delay time.Duration, action gnet.Action) {
 }
 
 func (s *customServer) OnTraffic(c gnet.Conn) (action gnet.Action) {
-	// 读取并处理数据包
-	// 1. 读取固定长度包头
-	headerBuf := make([]byte, serializer.HeaderSize)
-	if _, err := io.ReadFull(c, headerBuf); err != nil {
-		if err == io.EOF {
-			logging.Infof("connection closed by server")
-			return
-		}
-		logging.Errorf("read header error: %v", err)
-		return
-	}
-
-	// 2. 解析包头获取包体长度
-	bodyLen := binary.BigEndian.Uint32(headerBuf[26:serializer.HeaderSize])
-	if bodyLen == 0 || bodyLen > 10*1024*1024 {
-		logging.Errorf("invalid body length: %d", bodyLen)
-		return
-	}
-
-	// 3. 读取包体
-	bodyBuf := make([]byte, bodyLen)
-	if _, err := io.ReadFull(c, bodyBuf); err != nil {
-		logging.Errorf("read body error: %v", err)
+	bodyBuf, err := serializer.ReadPacketHeader(c)
+	if err != nil {
+		logging.Errorf("read packet header error: %v", err)
 		return
 	}
 
