@@ -20,8 +20,8 @@ import (
 
 const (
 	maxRetries    = 5
-	retryInterval = 3 * time.Second
-	bufSize       = 1024 * 1024
+	retryInterval = 6 * time.Second
+	bufSize       = 10 * 1024 * 1024
 )
 
 type Client struct {
@@ -81,7 +81,10 @@ func (c *Client) readLoop() {
 		if c.conn != nil {
 			c.conn.Close()
 		}
-		c.reconnectCh <- struct{}{}
+		select {
+		case c.reconnectCh <- struct{}{}:
+		default:
+		}
 	}()
 
 	for {
@@ -90,6 +93,7 @@ func (c *Client) readLoop() {
 			return
 		default:
 			// 1. 读取固定长度包头
+			logging.Infof("reading header...")
 			headerBuf := make([]byte, serializer.HeaderSize)
 			if _, err := io.ReadFull(c.conn, headerBuf); err != nil {
 				if err == io.EOF {
@@ -99,10 +103,10 @@ func (c *Client) readLoop() {
 				logging.Errorf("read header error: %v", err)
 				return
 			}
-
+			logging.Infof("headerBuf client: %v bodyLen:%v", headerBuf, headerBuf[26:serializer.HeaderSize])
 			// 2. 解析包头获取包体长度
 			bodyLen := binary.BigEndian.Uint32(headerBuf[26:serializer.HeaderSize])
-			if bodyLen == 0 || bodyLen > 10*1024*1024 {
+			if bodyLen == 0 || bodyLen > bufSize {
 				logging.Errorf("invalid body length: %d", bodyLen)
 				return
 			}
@@ -230,17 +234,17 @@ func main() {
 				return
 			}
 
-			// 发送登录请求
-			if err := client.SendLoginRequest(username, password); err != nil {
-				logging.Errorf("send login request failed: %v", err)
-				return
-			}
+			// // 发送登录请求
+			// if err := client.SendLoginRequest(username, password); err != nil {
+			// 	logging.Errorf("send login request failed: %v", err)
+			// 	return
+			// }
 
-			// 发送测试消息
-			if err := client.SendChatMessage("Hello, World!"); err != nil {
-				logging.Errorf("send chat message failed: %v", err)
-				return
-			}
+			// // 发送测试消息
+			// if err := client.SendChatMessage("Hello, World!"); err != nil {
+			// 	logging.Errorf("send chat message failed: %v", err)
+			// 	return
+			// }
 		}(i)
 	}
 

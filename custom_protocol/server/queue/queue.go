@@ -80,8 +80,8 @@ func (q *MessageQueue) processMessages() {
 						// TODO: 实现消息序列化和发送
 						logging.Infof("Sending chat message to fd:%d client: %v", conn.Fd(), chatMsg)
 						msg := fmt.Sprintf("hi fd:%d", conn.Fd())
-						serializer.EncodeMessage(2, &pb.ChatMessage{Content: msg})
-						conn.Write([]byte(msg))
+						bytes, _ := serializer.EncodeMessage(2, &pb.ChatMessage{Content: msg})
+						conn.Write(bytes)
 					}
 				}
 			}

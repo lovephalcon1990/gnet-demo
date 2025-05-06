@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gnet-io/gnet-examples/custom_protocol/pb"
+	"github.com/panjf2000/gnet/v2/pkg/logging"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -52,7 +53,7 @@ func EncodeMessage(cmdId uint32, msg proto.Message) ([]byte, error) {
 	binary.BigEndian.PutUint64(headerBuf[10:18], uint64(header.LastActiveTime))
 	binary.BigEndian.PutUint64(headerBuf[18:26], uint64(header.CreateTime))
 	binary.BigEndian.PutUint32(headerBuf[26:30], header.BodyLen)
-
+	logging.Infof("headerBuf: %v, bodyLen: %d logLevel: %s", headerBuf, header.BodyLen, logging.LogLevel())
 	// 组合包头和消息体
 	packet := make([]byte, HeaderSize+len(commonBytes))
 	copy(packet[0:HeaderSize], headerBuf)
